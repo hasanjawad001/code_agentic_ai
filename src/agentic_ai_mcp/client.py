@@ -1,6 +1,8 @@
 """AgenticAIClient - Client for running agentic workflows with MCP tools."""
 
 import asyncio
+import base64
+from pathlib import Path
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -113,6 +115,34 @@ class AgenticAIClient:
         """Get the LLM instance from the provider."""
         return self._provider.get_chat_model()
 
+    def _display_collected_images(self) -> None:
+        """Display any images collected during tool execution."""
+        images = self._tool_registry.get_collected_images()
+        if not images:
+            return
+
+        try:
+            # Try Jupyter display first
+            from IPython.display import Image as IPImage
+            from IPython.display import display
+
+            for img_data in images:
+                img_bytes = base64.b64decode(img_data["data"])
+                display(IPImage(data=img_bytes))
+                if self.verbose:
+                    w, h = img_data.get("width", "?"), img_data.get("height", "?")
+                    print(f"[Displayed {w}x{h} image]")
+        except ImportError:
+            # Fallback: save to file
+            for i, img_data in enumerate(images):
+                filename = f"output_image_{i}.{img_data.get('format', 'png')}"
+                img_bytes = base64.b64decode(img_data["data"])
+                Path(filename).write_bytes(img_bytes)
+                if self.verbose:
+                    print(f"[Saved image to {filename}]")
+
+        self._tool_registry.clear_collected_images()
+
     async def _load_tools(self) -> None:
         """Load tools from MCP server as LangChain tools."""
         await self._tool_registry.load_from_mcp(self.mcp_url)
@@ -167,6 +197,9 @@ class AgenticAIClient:
             print(f"RESULT: {final_response}")
             print(f"{'=' * 50}\n")
 
+        # Display any collected images
+        self._display_collected_images()
+
         return final_response
 
     async def run_with_planning(self, prompt: str) -> str:
@@ -197,7 +230,12 @@ class AgenticAIClient:
                 verbose=self.verbose,
             )
 
-        return await self._planning_workflow.run(prompt)
+        result = await self._planning_workflow.run(prompt)
+
+        # Display any collected images
+        self._display_collected_images()
+
+        return result
 
     def run_sync(self, prompt: str) -> str:
         """Synchronous version of run().

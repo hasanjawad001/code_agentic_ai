@@ -23,11 +23,20 @@ class ToolRegistry:
         """
         self.verbose = verbose
         self._langchain_tools: list[StructuredTool] = []
+        self._collected_images: list[dict] = []
 
     @property
     def langchain_tools(self) -> list[StructuredTool]:
         """Get list of LangChain tools."""
         return self._langchain_tools.copy()
+
+    def get_collected_images(self) -> list[dict]:
+        """Get all collected images."""
+        return self._collected_images.copy()
+
+    def clear_collected_images(self) -> None:
+        """Clear collected images."""
+        self._collected_images.clear()
 
     async def load_from_mcp(self, mcp_url: str) -> list[StructuredTool]:
         """Load tools from an MCP server as LangChain tools.
@@ -73,7 +82,13 @@ class ToolRegistry:
             async with Client(mcp_url) as client:
                 result = await client.call_tool(mcp_tool.name, filtered_kwargs)
                 if hasattr(result, "data") and isinstance(result.data, dict):
-                    return result.data.get("result", result.data)
+                    data = result.data.get("result", result.data)
+                    # Check for image data: {has_image: True, list_image: [...], output: ...}
+                    if isinstance(data, dict) and data.get("has_image"):
+                        for img in data.get("list_image", []):
+                            self._collected_images.append(img)
+                        return data.get("output", "Image generated")
+                    return data
                 return result
 
         def call_tool(**kwargs: Any) -> Any:
