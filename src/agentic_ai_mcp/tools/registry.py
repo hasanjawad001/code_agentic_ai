@@ -47,19 +47,33 @@ class ToolRegistry:
         Returns:
             List of LangChain StructuredTool instances
         """
-        if self.verbose:
-            print(f"Loading tools from: {mcp_url}")
+        return await self.load_from_mcp_urls([mcp_url])
 
-        async with Client(mcp_url) as client:
-            mcp_tools = await client.list_tools()
+    async def load_from_mcp_urls(self, mcp_urls: list[str]) -> list[StructuredTool]:
+        """Load tools from multiple MCP servers as LangChain tools.
 
+        Args:
+            mcp_urls: List of MCP server URLs
+
+        Returns:
+            List of LangChain StructuredTool instances from all servers
+        """
         self._langchain_tools = []
-        for tool in mcp_tools:
-            lc_tool = self._convert_to_langchain(tool, mcp_url)
-            self._langchain_tools.append(lc_tool)
 
-        if self.verbose:
-            print(f"Loaded tools: {[t.name for t in self._langchain_tools]}")
+        for mcp_url in mcp_urls:
+            if self.verbose:
+                print(f"Loading tools from: {mcp_url}")
+
+            async with Client(mcp_url) as client:
+                mcp_tools = await client.list_tools()
+
+            for tool in mcp_tools:
+                lc_tool = self._convert_to_langchain(tool, mcp_url)
+                self._langchain_tools.append(lc_tool)
+
+            if self.verbose:
+                loaded = [t.name for t in self._langchain_tools]
+                print(f"Loaded tools: {loaded}")
 
         return self._langchain_tools
 

@@ -79,6 +79,26 @@ result = await client.run_with_planning("Calculate ((0+2) + (1+1) + 1), then gre
 print(result)
 ```
 
+### Multiple MCP Servers
+
+Connect to tools spread across multiple servers:
+
+```python
+from agentic_ai_mcp import AgenticAIClient
+
+# Connect to multiple MCP servers
+client = AgenticAIClient(
+    mcp_urls=[
+        "http://<server-1>:8888/mcp",  # math tools
+        "http://<server-2>:9999/mcp",  # greeting tools
+    ]
+)
+
+# The agent can use tools from all servers
+result = await client.run("Calculate 2+3, then greet 'Alice' that many times.")
+print(result)
+```
+
 ### Using OpenAI
 
 ```python
@@ -123,7 +143,9 @@ client = AgenticAIClient(
 
 | Property/Method | Description |
 |-----------------|-------------|
-| `client.tools` | List of loaded tool names |
+| `client.mcp_url` | Primary MCP server URL (first in the list) |
+| `client.mcp_urls` | List of all MCP server URLs |
+| `client.tools` | List of loaded tool names from all servers |
 | `client.run(prompt)` | Simple agentic workflow |
 | `client.run_with_planning(prompt)` | Planning-based workflow for complex tasks |
 

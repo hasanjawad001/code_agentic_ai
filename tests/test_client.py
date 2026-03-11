@@ -1,7 +1,5 @@
 """Tests for AgenticAIClient."""
 
-import pytest
-
 from agentic_ai_mcp import AgenticAIClient, Settings
 
 
@@ -14,6 +12,7 @@ class TestAgenticAIClient:
 
         assert client.name == "agentic-ai-client"
         assert client.mcp_url == "http://127.0.0.1:8888/mcp"
+        assert client.mcp_urls == ["http://127.0.0.1:8888/mcp"]
         assert client.model == "claude-haiku-4-5-20251001"
         assert client.verbose is False
         assert client.tools == []
@@ -30,8 +29,61 @@ class TestAgenticAIClient:
 
         assert client.name == "custom-client"
         assert client.mcp_url == "http://192.168.1.100:9999/mcp"
+        assert client.mcp_urls == ["http://192.168.1.100:9999/mcp"]
         assert client.model == "claude-sonnet-4-20250514"
         assert client.verbose is True
+
+    def test_init_with_mcp_urls(self):
+        """Test client initialization with multiple MCP URLs."""
+        urls = [
+            "http://server1:8888/mcp",
+            "http://server2:9999/mcp",
+        ]
+        client = AgenticAIClient(mcp_urls=urls)
+
+        assert client.mcp_urls == urls
+        assert client.mcp_url == "http://server1:8888/mcp"
+
+    def test_init_with_mcp_url_and_mcp_urls(self):
+        """Test that mcp_url is prepended to mcp_urls when both provided."""
+        client = AgenticAIClient(
+            mcp_url="http://primary:8888/mcp",
+            mcp_urls=[
+                "http://server1:8888/mcp",
+                "http://server2:9999/mcp",
+            ],
+        )
+
+        assert client.mcp_url == "http://primary:8888/mcp"
+        assert client.mcp_urls == [
+            "http://primary:8888/mcp",
+            "http://server1:8888/mcp",
+            "http://server2:9999/mcp",
+        ]
+
+    def test_init_with_mcp_url_and_mcp_urls_dedup(self):
+        """Test that duplicates are removed when mcp_url is already in mcp_urls."""
+        client = AgenticAIClient(
+            mcp_url="http://server1:8888/mcp",
+            mcp_urls=[
+                "http://server1:8888/mcp",
+                "http://server2:9999/mcp",
+            ],
+        )
+
+        assert client.mcp_url == "http://server1:8888/mcp"
+        assert client.mcp_urls == [
+            "http://server1:8888/mcp",
+            "http://server2:9999/mcp",
+        ]
+
+    def test_mcp_urls_returns_copy(self):
+        """Test that mcp_urls returns a copy, not the internal list."""
+        client = AgenticAIClient(mcp_urls=["http://server1:8888/mcp"])
+        urls = client.mcp_urls
+        urls.append("http://extra:8888/mcp")
+
+        assert len(client.mcp_urls) == 1
 
     def test_init_with_api_key_anthropic(self):
         """Test client initialization with API key override for Anthropic."""

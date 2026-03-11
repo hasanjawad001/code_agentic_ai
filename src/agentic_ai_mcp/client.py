@@ -35,7 +35,8 @@ class AgenticAIClient:
     def __init__(
         self,
         name: str = "agentic-ai-client",
-        mcp_url: str = "http://127.0.0.1:8888/mcp",
+        mcp_url: str | None = None,
+        mcp_urls: list[str] | None = None,
         provider: str = "anthropic",
         model: str | None = None,
         api_key: str | None = None,
@@ -46,15 +47,33 @@ class AgenticAIClient:
 
         Args:
             name: Name for the client
-            mcp_url: URL of the MCP server to connect to
+            mcp_url: URL of a single MCP server (backward compatible)
+            mcp_urls: List of MCP server URLs to connect to
             provider: LLM provider ('anthropic' or 'openai')
             model: LLM model name (defaults to settings)
             api_key: API key for the provider (optional, overrides .env)
             verbose: Enable verbose output
             settings: Optional Settings override
+
+        Note:
+            You can use either ``mcp_url`` or ``mcp_urls``.
+            If both are provided, ``mcp_url`` is prepended to ``mcp_urls`` (duplicates removed).
+            If neither is provided, defaults to ``["http://127.0.0.1:8888/mcp"]``.
         """
         self.name = name
-        self.mcp_url = mcp_url
+
+        # Build mcp_urls list with backward compatibility
+        if mcp_url is not None and mcp_urls is not None:
+            # Both provided: prepend mcp_url, deduplicate preserving order
+            combined = [mcp_url] + [u for u in mcp_urls if u != mcp_url]
+            self._mcp_urls = combined
+        elif mcp_urls is not None:
+            self._mcp_urls = list(mcp_urls)
+        elif mcp_url is not None:
+            self._mcp_urls = [mcp_url]
+        else:
+            self._mcp_urls = ["http://127.0.0.1:8888/mcp"]
+
         self.model = model or get_default_model()
         self.verbose = verbose
 
@@ -107,8 +126,18 @@ class AgenticAIClient:
         self._planning_workflow: PlanningWorkflow | None = None
 
     @property
+    def mcp_url(self) -> str:
+        """Primary MCP server URL (first in the list)."""
+        return self._mcp_urls[0]
+
+    @property
+    def mcp_urls(self) -> list[str]:
+        """List of all MCP server URLs."""
+        return self._mcp_urls.copy()
+
+    @property
     def tools(self) -> list[str]:
-        """List of loaded tool names from MCP server."""
+        """List of loaded tool names from all MCP servers."""
         return [t.name for t in self._tool_registry.langchain_tools]
 
     def _get_llm(self) -> Any:
@@ -144,8 +173,8 @@ class AgenticAIClient:
         self._tool_registry.clear_collected_images()
 
     async def _load_tools(self) -> None:
-        """Load tools from MCP server as LangChain tools."""
-        await self._tool_registry.load_from_mcp(self.mcp_url)
+        """Load tools from all MCP servers as LangChain tools."""
+        await self._tool_registry.load_from_mcp_urls(self._mcp_urls)
 
     async def run(self, prompt: str) -> str:
         """Run the agent with a prompt (simple ReAct workflow).
