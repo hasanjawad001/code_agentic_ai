@@ -42,6 +42,8 @@ class AgenticAIClient:
         api_key: str | None = None,
         verbose: bool = False,
         settings: Settings | None = None,
+        role: str | None = None,
+        tool_filter: list[str] | None = None,
     ) -> None:
         """Initialize AgenticAIClient.
 
@@ -54,6 +56,10 @@ class AgenticAIClient:
             api_key: API key for the provider (optional, overrides .env)
             verbose: Enable verbose output
             settings: Optional Settings override
+            role: Agent's role description (e.g. "researcher", "writer").
+                Used by the orchestrator to build context-aware prompts.
+            tool_filter: List of tool names to load. If set, only tools
+                matching these names are kept after loading from MCP.
 
         Note:
             You can use either ``mcp_url`` or ``mcp_urls``.
@@ -61,6 +67,9 @@ class AgenticAIClient:
             If neither is provided, defaults to ``["http://127.0.0.1:8888/mcp"]``.
         """
         self.name = name
+        self.role = role
+        self._tool_filter = tool_filter
+        self._shared_state: dict[str, Any] | None = None
 
         # Build mcp_urls list with backward compatibility
         if mcp_url is not None and mcp_urls is not None:
@@ -140,6 +149,16 @@ class AgenticAIClient:
         """List of loaded tool names from all MCP servers."""
         return [t.name for t in self._tool_registry.langchain_tools]
 
+    @property
+    def shared_state(self) -> dict[str, Any] | None:
+        """Shared state dict set by the orchestrator. None if not orchestrated."""
+        return self._shared_state
+
+    @shared_state.setter
+    def shared_state(self, state: dict[str, Any] | None) -> None:
+        """Set the shared state (called by the orchestrator)."""
+        self._shared_state = state
+
     def _get_llm(self) -> Any:
         """Get the LLM instance from the provider."""
         return self._provider.get_chat_model()
@@ -173,8 +192,18 @@ class AgenticAIClient:
         self._tool_registry.clear_collected_images()
 
     async def _load_tools(self) -> None:
-        """Load tools from all MCP servers as LangChain tools."""
+        """Load tools from all MCP servers as LangChain tools.
+
+        If ``tool_filter`` was set, only tools whose names appear in the
+        filter list are kept.
+        """
         await self._tool_registry.load_from_mcp_urls(self._mcp_urls)
+
+        if self._tool_filter is not None:
+            allowed = set(self._tool_filter)
+            self._tool_registry._langchain_tools = [
+                t for t in self._tool_registry._langchain_tools if t.name in allowed
+            ]
 
     async def run(self, prompt: str) -> str:
         """Run the agent with a prompt (simple ReAct workflow).
