@@ -145,27 +145,6 @@ result = await orchestrator.run("Analyze this dataset from two perspectives.")
 print(result)
 ```
 
-#### With a Synthesizer
-
-Add a synthesizer agent that runs last to combine all results into a final output:
-
-```python
-from agentic_ai_mcp import AgenticAIClient, AgenticAIOrchestrator
-
-researcher = AgenticAIClient(mcp_url=MCP_URL, role="researcher")
-analyst = AgenticAIClient(mcp_url=MCP_URL, role="analyst")
-synthesizer = AgenticAIClient(mcp_url=MCP_URL, role="synthesizer")
-
-orchestrator = AgenticAIOrchestrator(
-    clients=[researcher, analyst],
-    flow_type="parallel",
-    synthesizer=synthesizer,
-)
-
-result = await orchestrator.run("Evaluate the pros and cons of microservices.")
-print(result)
-```
-
 #### With Planning
 
 The orchestrator also supports the planning workflow on each agent:
@@ -269,7 +248,7 @@ result = orchestrator.run_with_planning_sync("Complex task...")
 |-----------------|-------------|
 | `orchestrator.clients` | List of orchestrated clients |
 | `orchestrator.shared_state` | The SharedState instance |
-| `orchestrator.run(prompt)` | Run with simple ReAct on each client (async) |
+| `orchestrator.run(prompt)` | Run with simple agent on each client (async) |
 | `orchestrator.run_with_planning(prompt)` | Run with planning on each client (async) |
 | `orchestrator.run_sync(prompt)` | Synchronous version of `run()` |
 | `orchestrator.run_with_planning_sync(prompt)` | Synchronous version of `run_with_planning()` |
