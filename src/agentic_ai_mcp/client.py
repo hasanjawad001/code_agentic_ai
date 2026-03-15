@@ -197,13 +197,7 @@ class AgenticAIClient:
         If ``tool_filter`` was set, only tools whose names appear in the
         filter list are kept.
         """
-        await self._tool_registry.load_from_mcp_urls(self._mcp_urls)
-
-        if self._tool_filter is not None:
-            allowed = set(self._tool_filter)
-            self._tool_registry._langchain_tools = [
-                t for t in self._tool_registry._langchain_tools if t.name in allowed
-            ]
+        await self._tool_registry.load_from_mcp_urls(self._mcp_urls, tool_filter=self._tool_filter)
 
     async def run(self, prompt: str) -> str:
         """Run the agent with a prompt (simple ReAct workflow).

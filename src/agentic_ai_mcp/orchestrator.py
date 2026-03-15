@@ -82,6 +82,11 @@ class AgenticAIOrchestrator:
         if client.role:
             parts.append(f"You are a {client.role}.")
 
+        parts.append(
+            "Only perform the parts of the task that can be accomplished with your available tools."
+            " Do not attempt parts that require tools you do not have."
+        )
+
         if context:
             parts.append(f"Previous agent results:\n{context}")
 

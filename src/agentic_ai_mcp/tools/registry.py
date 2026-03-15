@@ -49,16 +49,21 @@ class ToolRegistry:
         """
         return await self.load_from_mcp_urls([mcp_url])
 
-    async def load_from_mcp_urls(self, mcp_urls: list[str]) -> list[StructuredTool]:
+    async def load_from_mcp_urls(
+        self, mcp_urls: list[str], tool_filter: list[str] | None = None
+    ) -> list[StructuredTool]:
         """Load tools from multiple MCP servers as LangChain tools.
 
         Args:
             mcp_urls: List of MCP server URLs
+            tool_filter: Optional list of tool names to keep. If set, only
+                tools whose names appear in this list are loaded.
 
         Returns:
             List of LangChain StructuredTool instances from all servers
         """
         self._langchain_tools = []
+        allowed = set(tool_filter) if tool_filter is not None else None
 
         for mcp_url in mcp_urls:
             if self.verbose:
@@ -68,6 +73,8 @@ class ToolRegistry:
                 mcp_tools = await client.list_tools()
 
             for tool in mcp_tools:
+                if allowed is not None and tool.name not in allowed:
+                    continue
                 lc_tool = self._convert_to_langchain(tool, mcp_url)
                 self._langchain_tools.append(lc_tool)
 

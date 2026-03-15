@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentic-ai-mcp"
-version = "0.6.3"
+version = "0.6.4"
 description = "A lightweight agentic AI framework with MCP tool serving"
 readme = "README.md"
 license = "MIT"
